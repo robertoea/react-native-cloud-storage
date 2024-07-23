@@ -1,14 +1,15 @@
 import { withEntitlementsPlist, withInfoPlist, withPlugins, type ConfigPlugin } from '@expo/config-plugins';
 import type { RNCloudStorageConfigPluginOptions } from './types';
 
-const withRNCloudStorageInfoPlist: ConfigPlugin = (config) =>
+const withRNCloudStorageInfoPlist: ConfigPlugin<RNCloudStorageConfigPluginOptions> = (config, options) =>
   withInfoPlist(config, async (newConfig) => {
     if (!config.ios?.bundleIdentifier) {
       throw new Error('Missing iOS bundle identifier');
     }
     const infoPlist = newConfig.modResults;
+    const cloudBundleIdentifier = options?.iCloudBundleIdentifier ?? `iCloud.${config.ios.bundleIdentifier}`;
     infoPlist.NSUbiquitousContainers = {
-      [`iCloud.${config.ios.bundleIdentifier}`]: {
+      [`${cloudBundleIdentifier}`]: {
         NSUbiquitousContainerIsDocumentScopePublic: true,
         NSUbiquitousContainerSupportedFolderLevels: 'Any',
         NSUbiquitousContainerName: config.slug,
@@ -23,20 +24,22 @@ const withRNCloudStorageEntitlementsPlist: ConfigPlugin<RNCloudStorageConfigPlug
     if (!config.ios?.bundleIdentifier) {
       throw new Error('Missing iOS bundle identifier');
     }
+    const cloudBundleIdentifier = options?.iCloudBundleIdentifier ?? `iCloud.${config.ios.bundleIdentifier}`;
+    const ubiquityKvstoreIdentifierSuffix = options?.ubiquityKvstoreIdentifierSuffix ?? `${config.ios.bundleIdentifier}`;
     const entitlementsPlist = newConfig.modResults;
-    entitlementsPlist['com.apple.developer.icloud-container-identifiers'] = [`iCloud.${config.ios.bundleIdentifier}`];
+    entitlementsPlist['com.apple.developer.icloud-container-identifiers'] = [`${cloudBundleIdentifier}`];
     entitlementsPlist['com.apple.developer.icloud-services'] = ['CloudDocuments'];
     entitlementsPlist['com.apple.developer.icloud-container-environment'] =
       options?.iCloudContainerEnvironment ?? 'Production';
-    entitlementsPlist['com.apple.developer.ubiquity-container-identifiers'] = [`iCloud.${config.ios.bundleIdentifier}`];
+    entitlementsPlist['com.apple.developer.ubiquity-container-identifiers'] = [`${cloudBundleIdentifier}`];
     entitlementsPlist[
       'com.apple.developer.ubiquity-kvstore-identifier'
-    ] = `$(TeamIdentifierPrefix)${config.ios.bundleIdentifier}`;
+    ] = `$(TeamIdentifierPrefix)${ubiquityKvstoreIdentifierSuffix}`;
 
     return newConfig;
   });
 
 const withRNCloudStorageIos: ConfigPlugin<RNCloudStorageConfigPluginOptions> = (config, options) =>
-  withPlugins(config, [withRNCloudStorageInfoPlist, [withRNCloudStorageEntitlementsPlist, options]]);
+  withPlugins(config, [[withRNCloudStorageInfoPlist, options], [withRNCloudStorageEntitlementsPlist, options]]);
 
 export default withRNCloudStorageIos;
